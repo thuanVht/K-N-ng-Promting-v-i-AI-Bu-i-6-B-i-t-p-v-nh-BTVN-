@@ -1,0 +1,101 @@
+# BÁO CÁO PHÂN TÍCH SO SÁNH TRADE-OFF CÁC GIẢI PHÁP PROMPTING TRONG HỌC TẬP & NGHIÊN CỨU
+
+## 1. Bước 1: Đề xuất 2 Prompt mẫu
+
+### Giải pháp 1: Prompt đơn giản, ngắn gọn (Zero-shot trực tiếp)
+
+Tập trung vào tốc độ triển khai, ít ràng buộc, giao quyền tự tổ chức câu trả lời cho AI.
+
+```text
+Bạn là gia sư theo phương pháp Feynman và giám khảo chấm bài. Hãy đọc phần giải thích của học viên dưới đây về chủ đề "{{CHU_DE}}", chỉ ra chỗ họ hiểu chưa đúng hoặc diễn đạt khó hiểu, gợi ý cách giải thích đơn giản hơn, và chấm điểm bài làm dựa trên Rubric sau: "{{RUBRIC}}".
+
+Bài làm của học viên:
+"{{BAI_LAM}}"
+
+```
+
+---
+
+### Giải pháp 2: Prompt chi tiết, có cấu trúc và nhiều ràng buộc (Structured & Guardrailed Prompt)
+
+Tập trung vào tính nhất quán của đầu ra, tách bạch vai trò, bắt buộc dẫn chứng từ bài làm và có điều kiện xử lý bẫy dữ liệu (rỗng, thiếu rubric, lạc đề).
+
+```text
+# VAI TRÒ
+Bạn là Gia sư Feynman kết hợp Giám khảo Chấm bài Tự động. Nhiệm vụ của bạn là phát hiện lỗ hổng kiến thức trong lời giải thích của người học và chấm điểm theo Rubric một cách khách quan.
+
+# RÀNG BUỘC & XỬ LÝ LỖI DỮ LIỆU
+1. Nếu "{{CHU_DE}}" hoặc "{{BAI_LAM}}" trống/vô nghĩa: dừng chấm điểm, báo "DỮ LIỆU KHÔNG HỢP LỆ" và yêu cầu nhập lại. Tuyệt đối không tự bịa nội dung bài làm.
+2. Nếu "{{RUBRIC}}" trống: tự áp dụng Rubric dự phòng thang 10 (Hiểu bản chất: 4đ, Chính xác kỹ thuật: 4đ, Dễ hiểu: 2đ) và ghi chú rõ.
+3. Mọi nhận xét và điểm số phải trích dẫn bằng chứng cụ thể từ "{{BAI_LAM}}". Không suy diễn ý người học không viết; tổng điểm không vượt quá mức tối đa của Rubric.
+
+# ĐỊNH DẠNG ĐẦU RA BẮT BUỘC
+1. **Trạng thái dữ liệu:** [Hợp lệ / Thiếu Rubric (dùng thang dự phòng) / Dữ liệu không hợp lệ]
+2. **Phản hồi Gia sư Feynman:**
+   - Điểm hiểu đúng: [...]
+   - Lỗ hổng kiến thức / chỗ mơ hồ: [...]
+   - Cách giải thích lại đơn giản hơn: [...]
+   - 1 câu hỏi kiểm tra tư duy: [...]
+3. **Bảng chấm điểm Rubric:** Cột `Tiêu chí | Điểm đạt / Tối đa | Bằng chứng | Nhận xét`, kèm **Tổng điểm**.
+
+# DỮ LIỆU ĐẦU VÀO
+- Chủ đề: {{CHU_DE}}
+- Bài làm học viên: {{BAI_LAM}}
+- Rubric: {{RUBRIC}}
+
+```
+
+---
+
+## 2. Bước 2: Lập bảng so sánh Trade-off
+
+| Tiêu chí đánh giá | Giải pháp 1 (Đơn giản) | Giải pháp 2 (Chi tiết, nhiều ràng buộc) | Phân tích đánh đổi (Trade-off) |
+| --- | --- | --- | --- |
+| **Độ dễ hiểu & dễ viết** | **Cao** — ngắn gọn, ai cũng viết và sửa nhanh trong vài giây. | **Trung bình** — nhiều khối lệnh, người mới cần đọc kỹ để chỉnh sửa. | Giải pháp 1 tiết kiệm thời gian thiết kế ban đầu; Giải pháp 2 đòi hỏi đầu tư công sức cấu trúc hóa. |
+| **Chi phí Token** | **Ít** — tiêu tốn ít token đầu vào, phản hồi thường ngắn. | **Nhiều hơn** — tốn thêm token cho phần quy tắc, định dạng và xử lý ngoại lệ. | Giải pháp 1 rẻ hơn khi chạy đơn lẻ; Giải pháp 2 tốn thêm chi phí nhưng đổi lại tính ổn định khi chạy hàng loạt. |
+| **Chặn lỗi biên & bẫy dữ liệu** | **Trung bình (Thấp)** — dễ bịa nội dung khi bài làm rỗng, hoặc chấm lệch thang khi thiếu Rubric. | **Cực tốt** — có điều kiện rẽ nhánh rõ khi thiếu dữ liệu, lạc đề hoặc mâu thuẫn thang điểm. | Đây là điểm khác biệt cốt lõi quyết định khả năng đưa vào quy trình tự động hóa thực tế. |
+| **Tính nhất quán của Output** | **Thấp** — mỗi lần chạy AI có thể trình bày một kiểu khác nhau, khó trích xuất dữ liệu. | **Cao** — cố định 4 phần và bảng chấm điểm chuẩn, dễ lưu trữ hoặc tích hợp hệ thống. | Giải pháp 1 hợp dùng cá nhân; Giải pháp 2 phù hợp làm công cụ hỗ trợ giảng dạy/học tập chuẩn hóa. |
+| **Độ khách quan khi chấm điểm** | **Trung bình** — dễ chấm cảm tính, thiếu trích dẫn chứng cứ từ bài làm. | **Cao** — ép AI phải trích bằng chứng nguyên văn trước khi cho điểm. | Giảm đáng kể hiện tượng "ảo giác" hoặc khen ngợi chung chung của AI. |
+
+---
+
+## 3. Bước 3: Lựa chọn phương án tối ưu & Chạy thử
+
+### 3.1. Phương án được chọn và lý do
+
+**Lựa chọn:** **Giải pháp 2 (Prompt chi tiết, có cấu trúc và nhiều ràng buộc)** là phương án tối ưu nhất cho bài toán ứng dụng AI trong Học tập & Nghiên cứu.
+
+**Lý do lựa chọn:**
+
+* **Phù hợp mục tiêu tự động hóa:** Trong quy trình gia sư Feynman và chấm Rubric, sai số về điểm số hoặc ảo giác kiến thức gây ảnh hưởng trực tiếp đến người học. Chi phí tăng thêm một lượng nhỏ token ở Giải pháp 2 là hoàn toàn xứng đáng để đổi lấy độ chính xác và khả năng chặn lỗi biên.
+* **Đảm bảo tính công bằng và giải trình:** Yêu cầu trích dẫn bằng chứng từ bài làm giúp học viên biết rõ mình được/mất điểm ở câu nào, đồng thời chuẩn hóa định dạng đầu ra để dễ tái sử dụng.
+
+---
+
+### 3.2. Kết quả chạy thử Giải pháp 2
+
+#### Dữ liệu đầu vào thử nghiệm
+
+* **Chủ đề:** Cơ chế hoạt động của đệ quy (Recursion) trong lập trình
+* **Bài làm học viên:** *"Đệ quy là một hàm tự gọi lại chính nó để giải bài toán nhỏ hơn. Nếu không có chỗ dừng lại thì nó sẽ gọi mãi đến khi tràn bộ nhớ."*
+* **Rubric:** Hiểu bản chất đệ quy (4đ), Nêu được điều kiện dừng & bước đệ quy (4đ), Diễn đạt dễ hiểu (2đ). Tổng: 10đ.
+
+#### Kết quả phản hồi thực tế từ AI
+
+1. **Trạng thái dữ liệu:** Hợp lệ (Đầy đủ chủ đề, bài làm và Rubric thang 10).
+2. **Phản hồi Gia sư Feynman:**
+* **Điểm hiểu đúng:** Bạn nắm được hai ý cốt lõi nhất: hàm tự gọi lại chính nó trên bài toán nhỏ hơn và cần điểm dừng để tránh tràn bộ nhớ (Stack Overflow).
+* **Lỗ hổng kiến thức / chỗ mơ hồ:** Bạn chưa nêu rõ điều kiện dừng (Base Case) hoạt động thế nào (trả về kết quả trực tiếp thay vì gọi tiếp) và chưa giải thích cách các lời gọi hàm quay ngược lại để tổng hợp kết quả cuối cùng.
+* **Cách giải thích lại đơn giản hơn:** Hãy tưởng tượng bạn đứng trong hàng dài và hỏi người phía trước *"Bạn đứng thứ mấy?"*. Người đó lại hỏi người phía trước nữa, cho đến người đầu hàng trả lời *"Tôi số 1"* (điều kiện dừng). Sau đó từng người cộng thêm 1 và báo ngược lại tới chỗ bạn.
+* **1 câu hỏi kiểm tra tư duy:** Trong bài toán tính giai thừa `n!`, điều kiện dừng là gì và nếu đặt sai điều kiện dừng (ví dụ `n == 0` nhưng truyền vào số âm) thì chuyện gì sẽ xảy ra?
+
+
+3. **Bảng chấm điểm Rubric:**
+
+| Tiêu chí | Điểm đạt / Tối đa | Bằng chứng | Nhận xét |
+| --- | --- | --- | --- |
+| Hiểu bản chất đệ quy | 3.5 / 4.0 | *"hàm tự gọi lại chính nó để giải bài toán nhỏ hơn"* | Nắm đúng bản chất chia nhỏ bài toán, thiếu ý tổng hợp kết quả trả về. |
+| Điều kiện dừng & bước đệ quy | 3.0 / 4.0 | *"Nếu không có chỗ dừng lại thì nó sẽ gọi mãi đến khi tràn bộ nhớ"* | Nhận thức đúng vai trò của điểm dừng và hậu quả tràn ngăn xếp, nhưng chưa dùng thuật ngữ chuẩn và chưa mô tả rõ cách thoát đệ quy. |
+| Diễn đạt dễ hiểu | 2.0 / 2.0 | Toàn bộ đoạn giải thích 2 câu ngắn gọn | Diễn đạt súc tích, mạch lạc, đúng tinh thần giải thích đơn giản của Feynman. |
+
+* **Tổng điểm:** `8.5 / 10.0` — Nắm vững tư duy cốt lõi, chỉ cần bổ sung cơ chế trả ngược giá trị sau điều kiện dừng để hoàn thiện câu trả lời.
